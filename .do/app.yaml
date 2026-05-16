@@ -1,0 +1,138 @@
+name: gateverify
+services:
+  - name: web
+    github:
+      repo: Control-B/Geofence
+      branch: main
+      deploy_on_push: true
+    environment_slug: node-js
+    instance_count: 1
+    instance_size_slug: basic-xxs
+    build_command: npm install && npm run build
+    run_command: npm run start
+    http_port: 3000
+    envs:
+      - key: NEXT_PUBLIC_APP_URL
+        scope: RUN_AND_BUILD_TIME
+        value: https://gateverify.example.com
+      - key: NEXT_PUBLIC_CHECKIN_API_URL
+        scope: RUN_AND_BUILD_TIME
+        value: https://checkin-service.example.com
+      - key: NEXT_PUBLIC_DASHBOARD_API_URL
+        scope: RUN_AND_BUILD_TIME
+        value: https://dashboard-service.example.com
+      - key: NEXT_PUBLIC_DOCS_API_URL
+        scope: RUN_AND_BUILD_TIME
+        value: https://docs-service.example.com
+      - key: NEXT_PUBLIC_SIGNING_API_URL
+        scope: RUN_AND_BUILD_TIME
+        value: https://signing-service.example.com
+      - key: NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
+        scope: RUN_AND_BUILD_TIME
+        type: SECRET
+      - key: CLERK_SECRET_KEY
+        scope: RUN_AND_BUILD_TIME
+        type: SECRET
+
+  - name: checkin-service
+    github:
+      repo: Control-B/Geofence
+      branch: main
+      deploy_on_push: true
+    environment_slug: node-js
+    instance_count: 1
+    instance_size_slug: basic-xxs
+    build_command: npm install
+    run_command: npm run service:checkin
+    http_port: 4001
+    envs:
+      - key: PORT
+        value: "4001"
+      - key: APP_URL
+        value: https://gateverify.example.com
+      - key: CORS_ORIGIN
+        value: https://gateverify.example.com
+      - key: DATABASE_URL
+        scope: RUN_TIME
+        type: SECRET
+      - key: REDIS_URL
+        scope: RUN_TIME
+        type: SECRET
+
+  - name: dashboard-service
+    github:
+      repo: Control-B/Geofence
+      branch: main
+      deploy_on_push: true
+    environment_slug: node-js
+    instance_count: 1
+    instance_size_slug: basic-xxs
+    build_command: npm install
+    run_command: npm run service:dashboard
+    http_port: 4002
+    envs:
+      - key: PORT
+        value: "4002"
+      - key: CORS_ORIGIN
+        value: https://gateverify.example.com
+      - key: CLERK_SECRET_KEY
+        scope: RUN_TIME
+        type: SECRET
+      - key: DATABASE_URL
+        scope: RUN_TIME
+        type: SECRET
+
+  - name: docs-service
+    github:
+      repo: Control-B/Geofence
+      branch: main
+      deploy_on_push: true
+    environment_slug: node-js
+    instance_count: 1
+    instance_size_slug: basic-xxs
+    build_command: npm install
+    run_command: npm run service:docs
+    http_port: 4003
+    envs:
+      - key: PORT
+        value: "4003"
+      - key: CORS_ORIGIN
+        value: https://gateverify.example.com
+      - key: DATABASE_URL
+        scope: RUN_TIME
+        type: SECRET
+      - key: DO_SPACES_ENDPOINT
+        scope: RUN_TIME
+        type: SECRET
+      - key: DO_SPACES_REGION
+        scope: RUN_TIME
+        type: SECRET
+      - key: DO_SPACES_BUCKET
+        scope: RUN_TIME
+        type: SECRET
+      - key: DO_SPACES_KEY
+        scope: RUN_TIME
+        type: SECRET
+      - key: DO_SPACES_SECRET
+        scope: RUN_TIME
+        type: SECRET
+
+  - name: signing-service
+    github:
+      repo: Control-B/Geofence
+      branch: main
+      deploy_on_push: true
+    environment_slug: node-js
+    instance_count: 1
+    instance_size_slug: basic-xxs
+    build_command: npm install
+    run_command: npm run service:signing
+    http_port: 4004
+    envs:
+      - key: PORT
+        value: "4004"
+      - key: CORS_ORIGIN
+        value: https://gateverify.example.com
+      - key: DATABASE_URL
+        scope: RUN_TIME
+        type: SECRET

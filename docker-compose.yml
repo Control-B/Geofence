@@ -1,0 +1,157 @@
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.web
+      args:
+        NEXT_PUBLIC_APP_URL: http://localhost:3000
+        NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY:-pk_test_replace_me}
+        NEXT_PUBLIC_CHECKIN_API_URL: http://localhost:4001
+        NEXT_PUBLIC_DASHBOARD_API_URL: http://localhost:4002
+        NEXT_PUBLIC_DOCS_API_URL: http://localhost:4003
+        NEXT_PUBLIC_SIGNING_API_URL: http://localhost:4004
+        NEXT_PUBLIC_DEV_AUTH_BYPASS: ${NEXT_PUBLIC_DEV_AUTH_BYPASS:-false}
+    environment:
+      NEXT_PUBLIC_APP_URL: http://localhost:3000
+      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY:-pk_test_replace_me}
+      CLERK_SECRET_KEY: ${CLERK_SECRET_KEY:-}
+      NEXT_PUBLIC_CLERK_SIGN_IN_URL: /sign-in
+      NEXT_PUBLIC_CLERK_SIGN_UP_URL: /sign-in
+      DEV_AUTH_BYPASS: ${DEV_AUTH_BYPASS:-false}
+      NEXT_PUBLIC_DEV_AUTH_BYPASS: ${NEXT_PUBLIC_DEV_AUTH_BYPASS:-false}
+    ports:
+      - "3000:3000"
+    depends_on:
+      checkin-service:
+        condition: service_healthy
+      dashboard-service:
+        condition: service_healthy
+      docs-service:
+        condition: service_healthy
+      signing-service:
+        condition: service_healthy
+
+  checkin-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.service
+    command: npm run service:checkin
+    environment:
+      PORT: 4001
+      APP_URL: http://localhost:3000
+      DATABASE_URL: postgres://gateverify:gateverify@postgres:5432/gateverify
+      REDIS_URL: redis://redis:6379
+      CORS_ORIGIN: http://localhost:3000
+      TOKEN_TTL_HOURS: 72
+    ports:
+      - "4001:4001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:4001/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  dashboard-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.service
+    command: npm run service:dashboard
+    environment:
+      PORT: 4002
+      APP_URL: http://localhost:3000
+      DATABASE_URL: postgres://gateverify:gateverify@postgres:5432/gateverify
+      CORS_ORIGIN: http://localhost:3000
+      CLERK_SECRET_KEY: ${CLERK_SECRET_KEY:-}
+      DEV_AUTH_BYPASS: ${DEV_AUTH_BYPASS:-false}
+    ports:
+      - "4002:4002"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:4002/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  docs-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.service
+    command: npm run service:docs
+    environment:
+      PORT: 4003
+      DATABASE_URL: postgres://gateverify:gateverify@postgres:5432/gateverify
+      CORS_ORIGIN: http://localhost:3000
+      MAX_UPLOAD_BYTES: 10485760
+      DO_SPACES_ENDPOINT: ${DO_SPACES_ENDPOINT:-}
+      DO_SPACES_REGION: ${DO_SPACES_REGION:-nyc3}
+      DO_SPACES_BUCKET: ${DO_SPACES_BUCKET:-}
+      DO_SPACES_KEY: ${DO_SPACES_KEY:-}
+      DO_SPACES_SECRET: ${DO_SPACES_SECRET:-}
+    ports:
+      - "4003:4003"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:4003/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  signing-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.service
+    command: npm run service:signing
+    environment:
+      PORT: 4004
+      DATABASE_URL: postgres://gateverify:gateverify@postgres:5432/gateverify
+      CORS_ORIGIN: http://localhost:3000
+    ports:
+      - "4004:4004"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:4004/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: gateverify
+      POSTGRES_PASSWORD: gateverify
+      POSTGRES_DB: gateverify
+    ports:
+      - "15432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./db/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ./db/seed.sql:/docker-entrypoint-initdb.d/02-seed.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gateverify -d gateverify"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "16379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  postgres-data:
