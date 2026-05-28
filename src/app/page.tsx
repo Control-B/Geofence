@@ -42,8 +42,8 @@ export default function LandingPage() {
               Let drivers verify arrival with GPS, send warehouse SMS updates, upload documents, and sign forms from their phone.
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-              <Link href="/check-in" className="primary-button bg-safety hover:bg-orange-600">
-                Get Started
+              <Link href="/dispatch" className="primary-button bg-safety hover:bg-orange-600">
+                Create Trip
               </Link>
               {devAuthBypass && (
                 <Link href="/dashboard" className="secondary-button border-orange-200/20 bg-orange-500/15 text-white hover:bg-orange-500/25">
@@ -118,8 +118,8 @@ export default function LandingPage() {
           <p className="font-black uppercase tracking-[.25em] text-orange-200">Pricing placeholder</p>
           <h2 className="mt-3 text-3xl font-black">Simple per-warehouse pricing</h2>
           <p className="mt-4 text-slate-300">Start with one dock team, then expand across facilities. Pricing tiers can be wired after the MVP validates workflow fit.</p>
-          <Link href="/check-in" className="primary-button mt-6 bg-safety hover:bg-orange-600">
-            Try the driver flow
+          <Link href="/dispatch" className="primary-button mt-6 bg-safety hover:bg-orange-600">
+            Create a trip
           </Link>
         </div>
         <div className="card text-asphalt">

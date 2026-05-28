@@ -6,3 +6,6 @@ dist
 coverage
 *.log
 tsconfig.tsbuildinfo
+.clerk/
+**/bin/
+**/obj/

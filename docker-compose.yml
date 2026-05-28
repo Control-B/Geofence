@@ -10,6 +10,8 @@ services:
         NEXT_PUBLIC_DASHBOARD_API_URL: http://localhost:4002
         NEXT_PUBLIC_DOCS_API_URL: http://localhost:4003
         NEXT_PUBLIC_SIGNING_API_URL: http://localhost:4004
+        NEXT_PUBLIC_API_BASE_URL: http://localhost:5000
+        NEXT_PUBLIC_MAPBOX_TOKEN: ${NEXT_PUBLIC_MAPBOX_TOKEN:-}
         NEXT_PUBLIC_DEV_AUTH_BYPASS: ${NEXT_PUBLIC_DEV_AUTH_BYPASS:-false}
     environment:
       NEXT_PUBLIC_APP_URL: http://localhost:3000
@@ -19,6 +21,8 @@ services:
       NEXT_PUBLIC_CLERK_SIGN_UP_URL: /sign-in
       DEV_AUTH_BYPASS: ${DEV_AUTH_BYPASS:-false}
       NEXT_PUBLIC_DEV_AUTH_BYPASS: ${NEXT_PUBLIC_DEV_AUTH_BYPASS:-false}
+      NEXT_PUBLIC_API_BASE_URL: http://localhost:5000
+      NEXT_PUBLIC_MAPBOX_TOKEN: ${NEXT_PUBLIC_MAPBOX_TOKEN:-}
     ports:
       - "3000:3000"
     depends_on:
@@ -29,6 +33,8 @@ services:
       docs-service:
         condition: service_healthy
       signing-service:
+        condition: service_healthy
+      freight-api:
         condition: service_healthy
 
   checkin-service:
@@ -125,6 +131,43 @@ services:
       timeout: 5s
       retries: 10
 
+  freight-api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__Database: Host=postgres;Port=5432;Database=gateverify;Username=gateverify;Password=gateverify
+      PublicApp__BaseUrl: http://localhost:3000
+      PublicApp__CorsOrigins__0: http://localhost:3000
+      PUBLIC_APP_BASE_URL: http://localhost:3000
+      CORS_ORIGIN: http://localhost:3000
+      ACS_CONNECTION_STRING: ${ACS_CONNECTION_STRING:-}
+      ACS_FROM_NUMBER: ${ACS_FROM_NUMBER:-}
+      SERVICE_BUS_CONNECTION_STRING: ${SERVICE_BUS_CONNECTION_STRING:-}
+      TRIP_EVENTS_QUEUE_NAME: ${TRIP_EVENTS_QUEUE_NAME:-trip-events}
+      AzureBlobStorage__ConnectionString: ${AZURE_BLOB_STORAGE_CONNECTION_STRING:-}
+      AzureBlobStorage__ContainerName: ${AZURE_BLOB_STORAGE_CONTAINER_NAME:-delivery-documents}
+      Mapbox__PublicToken: ${NEXT_PUBLIC_MAPBOX_TOKEN:-}
+      TeamsBot__MicrosoftAppId: ${TEAMS_BOT_MICROSOFT_APP_ID:-}
+      TeamsBot__MicrosoftAppPassword: ${TEAMS_BOT_MICROSOFT_APP_PASSWORD:-}
+      TeamsBot__TenantId: ${TEAMS_BOT_TENANT_ID:-}
+      TeamsBot__TargetConversationId: ${TEAMS_BOT_TARGET_CONVERSATION_ID:-}
+      Geofence__DefaultRadiusMeters: 250
+      Geofence__MaxGpsAccuracyMeters: 100
+      Geofence__RequiredInsidePingCount: 2
+    ports:
+      - "5000:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
   postgres:
     image: postgres:16-alpine
     environment:
@@ -132,7 +175,7 @@ services:
       POSTGRES_PASSWORD: gateverify
       POSTGRES_DB: gateverify
     ports:
-      - "15432:5432"
+      - "${POSTGRES_HOST_PORT:-15433}:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
       - ./db/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro

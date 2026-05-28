@@ -56,8 +56,65 @@ create table if not exists signatures (
   signed_at timestamptz not null default now()
 );
 
+create table if not exists trips (
+  id uuid primary key default gen_random_uuid(),
+  public_trip_token text not null unique,
+  public_token_expires_at timestamptz not null,
+  trip_reference text not null,
+  driver_name text not null,
+  driver_phone text not null,
+  warehouse_name text not null,
+  warehouse_lat numeric(10, 7) not null,
+  warehouse_lng numeric(10, 7) not null,
+  geofence_radius_meters integer not null default 250 check (geofence_radius_meters between 25 and 5000),
+  scheduled_arrival_time timestamptz not null,
+  status text not null check (status in ('CREATED', 'SMS_SENT', 'TRACKING_STARTED', 'ARRIVED', 'CONFIRMED', 'DOCKED', 'COMPLETED', 'CANCELLED')),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists location_pings (
+  id uuid primary key default gen_random_uuid(),
+  trip_id uuid not null references trips(id) on delete cascade,
+  latitude numeric(10, 7) not null,
+  longitude numeric(10, 7) not null,
+  accuracy_meters numeric(10, 2) not null,
+  speed numeric(10, 2),
+  heading numeric(10, 2),
+  timestamp timestamptz not null,
+  distance_to_warehouse_meters integer not null,
+  is_inside_geofence boolean not null,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists trip_events (
+  id uuid primary key default gen_random_uuid(),
+  trip_id uuid not null references trips(id) on delete cascade,
+  event_type text not null,
+  event_payload_json jsonb not null default '{}'::jsonb,
+  created_by text not null,
+  correlation_id text not null,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists trip_documents (
+  id uuid primary key default gen_random_uuid(),
+  trip_id uuid not null references trips(id) on delete cascade,
+  document_type text not null,
+  file_name text not null,
+  blob_url text not null,
+  uploaded_by text not null,
+  uploaded_at timestamptz not null default now(),
+  status text not null check (status in ('PENDING', 'UPLOADED', 'REJECTED'))
+);
+
 create index if not exists check_ins_created_at_idx on check_ins(created_at desc);
 create index if not exists check_ins_status_idx on check_ins(geofence_status);
 create index if not exists check_ins_type_idx on check_ins(type);
 create index if not exists documents_check_in_id_idx on documents(check_in_id);
 create index if not exists signatures_check_in_id_idx on signatures(check_in_id);
+create index if not exists trips_public_trip_token_idx on trips(public_trip_token);
+create index if not exists trips_status_idx on trips(status);
+create index if not exists location_pings_trip_id_timestamp_idx on location_pings(trip_id, timestamp desc);
+create index if not exists trip_events_trip_id_created_at_idx on trip_events(trip_id, created_at desc);
+create index if not exists trip_documents_trip_id_idx on trip_documents(trip_id);
