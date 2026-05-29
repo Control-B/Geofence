@@ -11,9 +11,10 @@ type Detail = {
   signatures: Array<Record<string, string>>;
 };
 
-export default function DashboardDetailPage({params}: {params: Promise<{id: string}>}) {
+type GetToken = () => Promise<string | null>;
+
+function DashboardDetailContent({params, getToken}: {params: Promise<{id: string}>; getToken: GetToken}) {
   const {id} = use(params);
-  const {getToken} = useAuth();
   const [detail, setDetail] = useState<Detail | null>(null);
   const [error, setError] = useState("");
 
@@ -111,4 +112,17 @@ export default function DashboardDetailPage({params}: {params: Promise<{id: stri
       </div>
     </main>
   );
+}
+
+function ClerkDashboardDetailPage({params}: {params: Promise<{id: string}>}) {
+  const {getToken} = useAuth();
+  return <DashboardDetailContent params={params} getToken={getToken} />;
+}
+
+export default function DashboardDetailPage({params}: {params: Promise<{id: string}>}) {
+  if (process.env.NEXT_PUBLIC_DEV_AUTH_BYPASS === "true") {
+    return <DashboardDetailContent params={params} getToken={async () => null} />;
+  }
+
+  return <ClerkDashboardDetailPage params={params} />;
 }

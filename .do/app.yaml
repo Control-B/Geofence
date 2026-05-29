@@ -1,4 +1,70 @@
 name: gateverify
+region: nyc
+features:
+  - buildpack-stack=ubuntu-22
+alerts:
+  - rule: DEPLOYMENT_FAILED
+
+ingress:
+  rules:
+    - match:
+        path:
+          prefix: /freight-api
+      component:
+        name: freight-api
+        preserve_path_prefix: false
+    - match:
+        path:
+          prefix: /checkin-service
+      component:
+        name: app-api
+        preserve_path_prefix: true
+    - match:
+        path:
+          prefix: /dashboard-service
+      component:
+        name: app-api
+        preserve_path_prefix: true
+    - match:
+        path:
+          prefix: /docs-service
+      component:
+        name: app-api
+        preserve_path_prefix: true
+    - match:
+        path:
+          prefix: /signing-service
+      component:
+        name: app-api
+        preserve_path_prefix: true
+    - match:
+        path:
+          prefix: /
+      component:
+        name: web
+
+envs:
+  - key: DATABASE_URL
+    scope: RUN_TIME
+    type: GENERAL
+    value: ${gateverify-db.DATABASE_URL}
+  - key: CORS_ORIGIN
+    scope: RUN_TIME
+    type: GENERAL
+    value: ${APP_URL}
+  - key: PUBLIC_APP_BASE_URL
+    scope: RUN_TIME
+    type: GENERAL
+    value: ${APP_URL}
+  - key: APP_URL
+    scope: RUN_TIME
+    type: GENERAL
+    value: ${APP_URL}
+  - key: TOKEN_TTL_HOURS
+    scope: RUN_TIME
+    type: GENERAL
+    value: "72"
+
 services:
   - name: web
     github:
@@ -6,6 +72,7 @@ services:
       branch: main
       deploy_on_push: true
     environment_slug: node-js
+    source_dir: /
     instance_count: 1
     instance_size_slug: basic-xxs
     build_command: npm install && npm run build
@@ -14,125 +81,242 @@ services:
     envs:
       - key: NEXT_PUBLIC_APP_URL
         scope: RUN_AND_BUILD_TIME
-        value: https://gateverify.example.com
+        type: GENERAL
+        value: ${APP_URL}
       - key: NEXT_PUBLIC_CHECKIN_API_URL
         scope: RUN_AND_BUILD_TIME
-        value: https://checkin-service.example.com
+        type: GENERAL
+        value: /checkin-service
       - key: NEXT_PUBLIC_DASHBOARD_API_URL
         scope: RUN_AND_BUILD_TIME
-        value: https://dashboard-service.example.com
+        type: GENERAL
+        value: /dashboard-service
       - key: NEXT_PUBLIC_DOCS_API_URL
         scope: RUN_AND_BUILD_TIME
-        value: https://docs-service.example.com
+        type: GENERAL
+        value: /docs-service
       - key: NEXT_PUBLIC_SIGNING_API_URL
         scope: RUN_AND_BUILD_TIME
-        value: https://signing-service.example.com
+        type: GENERAL
+        value: /signing-service
+      - key: NEXT_PUBLIC_API_BASE_URL
+        scope: RUN_AND_BUILD_TIME
+        type: GENERAL
+        value: /freight-api
       - key: NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
         scope: RUN_AND_BUILD_TIME
-        type: SECRET
-      - key: CLERK_SECRET_KEY
+        type: GENERAL
+        value: pk_test_replace_me
+      - key: NEXT_PUBLIC_CLERK_SIGN_IN_URL
         scope: RUN_AND_BUILD_TIME
-        type: SECRET
-
-  - name: checkin-service
-    github:
-      repo: Control-B/Geofence
-      branch: main
-      deploy_on_push: true
-    environment_slug: node-js
-    instance_count: 1
-    instance_size_slug: basic-xxs
-    build_command: npm install
-    run_command: npm run service:checkin
-    http_port: 4001
-    envs:
-      - key: PORT
-        value: "4001"
-      - key: APP_URL
-        value: https://gateverify.example.com
-      - key: CORS_ORIGIN
-        value: https://gateverify.example.com
-      - key: DATABASE_URL
-        scope: RUN_TIME
-        type: SECRET
-      - key: REDIS_URL
-        scope: RUN_TIME
-        type: SECRET
-
-  - name: dashboard-service
-    github:
-      repo: Control-B/Geofence
-      branch: main
-      deploy_on_push: true
-    environment_slug: node-js
-    instance_count: 1
-    instance_size_slug: basic-xxs
-    build_command: npm install
-    run_command: npm run service:dashboard
-    http_port: 4002
-    envs:
-      - key: PORT
-        value: "4002"
-      - key: CORS_ORIGIN
-        value: https://gateverify.example.com
+        type: GENERAL
+        value: /sign-in
+      - key: NEXT_PUBLIC_CLERK_SIGN_UP_URL
+        scope: RUN_AND_BUILD_TIME
+        type: GENERAL
+        value: /sign-in
+      - key: NEXT_PUBLIC_DEV_AUTH_BYPASS
+        scope: RUN_AND_BUILD_TIME
+        type: GENERAL
+        value: "true"
+      - key: NEXT_PUBLIC_MAPBOX_TOKEN
+        scope: RUN_AND_BUILD_TIME
+        type: GENERAL
+        value: ""
       - key: CLERK_SECRET_KEY
         scope: RUN_TIME
         type: SECRET
-      - key: DATABASE_URL
+        value: ""
+      - key: DEV_AUTH_BYPASS
+        scope: RUN_TIME
+        type: GENERAL
+        value: "true"
+
+  - name: freight-api
+    github:
+      repo: Control-B/Geofence
+      branch: main
+      deploy_on_push: true
+    dockerfile_path: Dockerfile.api
+    source_dir: /
+    instance_count: 1
+    instance_size_slug: basic-xs
+    http_port: 8080
+    health_check:
+      http_path: /health
+      port: 8080
+      initial_delay_seconds: 20
+      period_seconds: 10
+      timeout_seconds: 5
+      failure_threshold: 6
+    envs:
+      - key: ConnectionStrings__Database
+        scope: RUN_TIME
+        type: GENERAL
+        value: Host=${gateverify-db.HOSTNAME};Port=${gateverify-db.PORT};Database=${gateverify-db.DATABASE};Username=${gateverify-db.USERNAME};Password=${gateverify-db.PASSWORD};SSL Mode=Require;Trust Server Certificate=true
+      - key: ASPNETCORE_ENVIRONMENT
+        scope: RUN_TIME
+        type: GENERAL
+        value: Production
+      - key: ASPNETCORE_URLS
+        scope: RUN_TIME
+        type: GENERAL
+        value: http://+:8080
+      - key: ACS_CONNECTION_STRING
         scope: RUN_TIME
         type: SECRET
+        value: ""
+      - key: ACS_FROM_NUMBER
+        scope: RUN_TIME
+        type: SECRET
+        value: ""
+      - key: SERVICE_BUS_CONNECTION_STRING
+        scope: RUN_TIME
+        type: SECRET
+        value: ""
+      - key: TRIP_EVENTS_QUEUE_NAME
+        scope: RUN_TIME
+        type: GENERAL
+        value: trip-events
+      - key: AZURE_BLOB_STORAGE_CONNECTION_STRING
+        scope: RUN_TIME
+        type: SECRET
+        value: ""
+      - key: AZURE_BLOB_STORAGE_CONTAINER_NAME
+        scope: RUN_TIME
+        type: GENERAL
+        value: delivery-documents
+      - key: Geofence__DefaultRadiusMeters
+        scope: RUN_TIME
+        type: GENERAL
+        value: "250"
+      - key: Geofence__MaxGpsAccuracyMeters
+        scope: RUN_TIME
+        type: GENERAL
+        value: "100"
+      - key: Geofence__RequiredInsidePingCount
+        scope: RUN_TIME
+        type: GENERAL
+        value: "2"
 
-  - name: docs-service
+  - name: app-api
     github:
       repo: Control-B/Geofence
       branch: main
       deploy_on_push: true
     environment_slug: node-js
+    source_dir: /
     instance_count: 1
     instance_size_slug: basic-xxs
     build_command: npm install
-    run_command: npm run service:docs
-    http_port: 4003
+    run_command: |
+      sh -c '
+      PORT=4001 npm run service:checkin &
+      PORT=4002 npm run service:dashboard &
+      PORT=4003 npm run service:docs &
+      PORT=4004 npm run service:signing &
+      node --input-type=module <<'"'"'NODE'"'"'
+      import http from "node:http";
+
+      const routes = [
+        {prefix: "/checkin-service", port: 4001},
+        {prefix: "/dashboard-service", port: 4002},
+        {prefix: "/docs-service", port: 4003},
+        {prefix: "/signing-service", port: 4004}
+      ];
+
+      function sendJson(response, status, body) {
+        response.writeHead(status, {"content-type": "application/json"});
+        response.end(JSON.stringify(body));
+      }
+
+      const server = http.createServer((request, response) => {
+        if (request.url === "/health") {
+          sendJson(response, 200, {service: "app-api", ok: true});
+          return;
+        }
+
+        const url = new URL(request.url || "/", "http://localhost");
+        const route = routes.find((item) => url.pathname === item.prefix || url.pathname.startsWith(`${item.prefix}/`));
+        if (!route) {
+          sendJson(response, 404, {error: "Unknown API route."});
+          return;
+        }
+
+        const upstreamPath = `${url.pathname.slice(route.prefix.length) || "/"}${url.search}`;
+        const headers = {...request.headers, host: `127.0.0.1:${route.port}`};
+        const upstream = http.request({
+          hostname: "127.0.0.1",
+          port: route.port,
+          method: request.method,
+          path: upstreamPath,
+          headers
+        }, (upstreamResponse) => {
+          response.writeHead(upstreamResponse.statusCode || 502, upstreamResponse.headers);
+          upstreamResponse.pipe(response);
+        });
+
+        upstream.on("error", (error) => {
+          console.error(error);
+          if (!response.headersSent) sendJson(response, 502, {error: "API service unavailable."});
+          else response.end();
+        });
+
+        request.pipe(upstream);
+      });
+
+      const port = Number(process.env.PORT || 4000);
+      server.listen(port, () => console.log(`app-api gateway listening on ${port}`));
+      NODE
+      '
+    http_port: 4000
+    health_check:
+      http_path: /health
+      port: 4000
+      initial_delay_seconds: 20
+      period_seconds: 10
+      timeout_seconds: 5
+      failure_threshold: 6
     envs:
       - key: PORT
-        value: "4003"
-      - key: CORS_ORIGIN
-        value: https://gateverify.example.com
-      - key: DATABASE_URL
+        scope: RUN_TIME
+        type: GENERAL
+        value: "4000"
+      - key: CLERK_SECRET_KEY
         scope: RUN_TIME
         type: SECRET
+        value: ""
+      - key: DEV_AUTH_BYPASS
+        scope: RUN_TIME
+        type: GENERAL
+        value: "true"
+      - key: MAX_UPLOAD_BYTES
+        scope: RUN_TIME
+        type: GENERAL
+        value: "10485760"
       - key: DO_SPACES_ENDPOINT
         scope: RUN_TIME
         type: SECRET
+        value: ""
       - key: DO_SPACES_REGION
         scope: RUN_TIME
-        type: SECRET
+        type: GENERAL
+        value: nyc3
       - key: DO_SPACES_BUCKET
         scope: RUN_TIME
         type: SECRET
+        value: ""
       - key: DO_SPACES_KEY
         scope: RUN_TIME
         type: SECRET
+        value: ""
       - key: DO_SPACES_SECRET
         scope: RUN_TIME
         type: SECRET
+        value: ""
 
-  - name: signing-service
-    github:
-      repo: Control-B/Geofence
-      branch: main
-      deploy_on_push: true
-    environment_slug: node-js
-    instance_count: 1
-    instance_size_slug: basic-xxs
-    build_command: npm install
-    run_command: npm run service:signing
-    http_port: 4004
-    envs:
-      - key: PORT
-        value: "4004"
-      - key: CORS_ORIGIN
-        value: https://gateverify.example.com
-      - key: DATABASE_URL
-        scope: RUN_TIME
-        type: SECRET
+databases:
+  - name: gateverify-db
+    engine: PG
+    version: "16"
+    production: false

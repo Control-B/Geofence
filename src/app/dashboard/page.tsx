@@ -64,8 +64,9 @@ function statusLabel(status: string) {
   return status.replaceAll("_", " ");
 }
 
-export default function DashboardPage() {
-  const {getToken} = useAuth();
+type GetToken = () => Promise<string | null>;
+
+function DashboardContent({getToken}: {getToken: GetToken}) {
   const [freight, setFreight] = useState<FreightRecord[]>([]);
   const [checkIns, setCheckIns] = useState<CheckIn[]>([]);
   const [filter, setFilter] = useState("all");
@@ -281,4 +282,17 @@ export default function DashboardPage() {
       </div>
     </main>
   );
+}
+
+function ClerkDashboardPage() {
+  const {getToken} = useAuth();
+  return <DashboardContent getToken={getToken} />;
+}
+
+export default function DashboardPage() {
+  if (process.env.NEXT_PUBLIC_DEV_AUTH_BYPASS === "true") {
+    return <DashboardContent getToken={async () => null} />;
+  }
+
+  return <ClerkDashboardPage />;
 }

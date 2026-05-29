@@ -10,9 +10,9 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({children}: Readonly<{children: React.ReactNode}>) {
-  return (
-    <ClerkProvider>
-      <html lang="en">
+  const devAuthBypass = process.env.NEXT_PUBLIC_DEV_AUTH_BYPASS === "true";
+  const document = (
+    <html lang="en">
         <body className="min-h-screen">
           <header className="sticky top-0 z-40 border-b border-white/10 bg-asphalt/90 backdrop-blur">
             <nav className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6 lg:px-8">
@@ -63,6 +63,7 @@ export default function RootLayout({children}: Readonly<{children: React.ReactNo
           </footer>
         </body>
       </html>
-    </ClerkProvider>
   );
+
+  return devAuthBypass ? document : <ClerkProvider>{document}</ClerkProvider>;
 }
